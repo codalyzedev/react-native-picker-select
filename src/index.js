@@ -14,29 +14,6 @@ import {
 import PropTypes from 'prop-types';
 import isEqual from 'lodash.isequal';
 
-function handlePlaceholder({ placeholder }) {
-    if (isEqual(placeholder, {})) {
-        return [];
-    }
-    return [placeholder];
-}
-
-function getSelectedItem({ items, key, value }) {
-    let idx = items.findIndex((item) => {
-        if (item.key && key) {
-            return isEqual(item.key, key);
-        }
-        return isEqual(item.value, value);
-    });
-    if (idx === -1) {
-        idx = 0;
-    }
-    return {
-        selectedItem: items[idx],
-        idx,
-    };
-}
-
 export default class RNPickerSelect extends PureComponent {
     static propTypes = {
         onValueChange: PropTypes.func.isRequired,
@@ -85,46 +62,18 @@ export default class RNPickerSelect extends PureComponent {
         doneText: 'Done',
     };
 
-    static getDerivedStateFromProps(nextProps, prevState) {
-        // update items if items prop changes
-        const itemsChanged = !isEqual(prevState.items, nextProps.items);
-        // update selectedItem if value prop is defined and differs from currently selected item
-        const newItems = handlePlaceholder({ placeholder: nextProps.placeholder }).concat(
-            nextProps.items
-        );
-        const { selectedItem, idx } = getSelectedItem({
-            items: newItems,
-            key: nextProps.itemKey,
-            value: nextProps.value,
-        });
-        const selectedItemChanged =
-            !isEqual(nextProps.value, undefined) && !isEqual(prevState.selectedItem, selectedItem);
+    get items() {
+        return this.props.items;
+    }
 
-        if (itemsChanged || selectedItemChanged) {
-            if (selectedItemChanged) {
-                nextProps.onValueChange(selectedItem.value, idx);
-            }
-            return {
-                items: itemsChanged ? newItems : prevState.items,
-                selectedItem: selectedItemChanged ? selectedItem : prevState.selectedItem,
-            };
-        }
-
-        return null;
+    get selectedItem() {
+        const item = this.items.find(item => item.value === this.props.value);
+        return item ? item : { value: -1, label: this.props.label || 'Select' };
     }
 
     constructor(props) {
         super(props);
-
-        const items = handlePlaceholder({ placeholder: props.placeholder }).concat(props.items);
-        const { selectedItem } = getSelectedItem({
-            items,
-            key: props.itemKey,
-            value: props.value,
-        });
         this.state = {
-            items,
-            selectedItem,
             showPicker: false,
             animationType: undefined,
         };
@@ -151,16 +100,12 @@ export default class RNPickerSelect extends PureComponent {
 
     onValueChange(value, index) {
         this.props.onValueChange(value, index);
-
-        this.setState({
-            selectedItem: this.state.items[index],
-        });
     }
 
     getPlaceholderStyle() {
         if (
             !isEqual(this.props.placeholder, {}) &&
-            this.state.selectedItem.label === this.props.placeholder.label
+            this.selectedItem.label === this.props.placeholder.label
         ) {
             return { color: this.props.style.placeholderColor || '#C7C7CD' };
         }
@@ -182,7 +127,7 @@ export default class RNPickerSelect extends PureComponent {
     }
 
     renderPickerItems() {
-        return this.state.items.map((item) => {
+        return this.items.map((item) => {
             return (
                 <Picker.Item
                     label={item.label}
@@ -276,7 +221,7 @@ export default class RNPickerSelect extends PureComponent {
                         this.props.style.inputIOS,
                         this.getPlaceholderStyle(),
                     ]}
-                    value={this.state.selectedItem.label}
+                    value={this.selectedItem.label}
                     ref={(ref) => {
                         this.inputRef = ref;
                     }}
@@ -312,7 +257,7 @@ export default class RNPickerSelect extends PureComponent {
                     <View style={[styles.modalViewBottom, this.props.style.modalViewBottom]}>
                         <Picker
                             onValueChange={this.onValueChange}
-                            selectedValue={this.state.selectedItem.value}
+                            selectedValue={this.selectedItem.value}
                             testID="RNPickerSelectIOS"
                         >
                             {this.renderPickerItems()}
@@ -330,7 +275,7 @@ export default class RNPickerSelect extends PureComponent {
                 <Picker
                     style={{ position: 'absolute', top: 0, width: 1000, height: this.props.pickerMassiveHeight || 1000 }}
                     onValueChange={this.onValueChange}
-                    selectedValue={this.state.selectedItem.value}
+                    selectedValue={this.selectedItem.value}
                     testID="RNPickerSelectAndroid"
                     mode={this.props.mode}
                     enabled={!this.props.disabled}
@@ -355,7 +300,7 @@ export default class RNPickerSelect extends PureComponent {
                         this.getPlaceholderStyle(),
                     ]}
                     onValueChange={this.onValueChange}
-                    selectedValue={this.state.selectedItem.value}
+                    selectedValue={this.selectedItem.value}
                     testID="RNPickerSelectAndroid"
                     mode={this.props.mode}
                     enabled={!this.props.disabled}
